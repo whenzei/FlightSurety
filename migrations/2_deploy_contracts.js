@@ -5,9 +5,10 @@ const fs = require('fs');
 module.exports = function(deployer) {
 
     let firstAirline = '0xf17f52151EbEF6C7334FAD080c5704D77216b732';
+    let firstAirlineName = 'First Airline';
     deployer.deploy(FlightSuretyData)
     .then(() => {
-        return deployer.deploy(FlightSuretyApp)
+        return deployer.deploy(FlightSuretyApp, FlightSuretyData.address, firstAirline, firstAirlineName)
                 .then(() => {
                     let config = {
                         localhost: {

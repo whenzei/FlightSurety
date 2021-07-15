@@ -11,11 +11,30 @@ contract FlightSuretyData {
 
     address private contractOwner;                                      // Account used to deploy contract
     bool private operational = true;                                    // Blocks all state changes throughout the contract if false
+   
+    uint private airlineCount = 0;
+    mapping(address => Airline) private airlines;
+    mapping(address => mapping(address => bool)) private votersMap;
+    mapping(address => uint) private authorizedContracts;
 
+    uint8 private constant AIRLINES_THRESHOLD = 4;
+    
+    struct Airline {
+        uint id;
+        string name;
+        bool approved;
+        bool active;
+        uint balance;
+        uint votesNeeded;
+        uint voteCount;
+    }
     /********************************************************************************************/
     /*                                       EVENT DEFINITIONS                                  */
     /********************************************************************************************/
 
+    event AirlineRegistration(address airlineAddress, uint id, string airlineName);
+    event AirlineApproval(address airlineAddress, uint id, string airlineName);
+    event AirlineActivation(address airlineAddress);
 
     /**
     * @dev Constructor
@@ -50,9 +69,23 @@ contract FlightSuretyData {
     /**
     * @dev Modifier that requires the "ContractOwner" account to be the function caller
     */
-    modifier requireContractOwner()
+    modifier requireContractOwner(address _address)
     {
-        require(msg.sender == contractOwner, "Caller is not contract owner");
+        require(_address == contractOwner, "Caller is not contract owner");
+        _;
+    }
+
+
+
+    modifier requireAirlineRegistered(address airline)
+    {
+        require(airlines[airline].approved, "Airline is not registered");
+        _;
+    }
+
+    modifier requireIsCallerAuthorized()
+    {
+        require(authorizedContracts[msg.sender] == 1, "Caller is not contract owner");
         _;
     }
 
@@ -74,6 +107,8 @@ contract FlightSuretyData {
     }
 
 
+
+
     /**
     * @dev Sets contract operations on/off
     *
@@ -84,7 +119,7 @@ contract FlightSuretyData {
                                 bool mode
                             ) 
                             external
-                            requireContractOwner 
+                            requireContractOwner(msg.sender)
     {
         operational = mode;
     }
@@ -99,13 +134,87 @@ contract FlightSuretyData {
     *
     */   
     function registerAirline
-                            (   
+                            (
+                                address registeringAirline,
+                                address newAirline,
+                                string airlineName
                             )
                             external
-                            pure
+                            requireIsCallerAuthorized
+                            requireIsOperational
     {
+        require((airlines[newAirline].approved == false), "Airline already registred");
+
+        if (airlineCount <= AIRLINES_THRESHOLD) {
+            nonConsensusRegister(registeringAirline, newAirline, airlineName);
+        } else {
+            multiPartyConsensusRegister(registeringAirline, newAirline, airlineName);
+        }
+    }
+    
+    function nonConsensusRegister(
+                                    address registeringAirline,
+                                    address newAirline,
+                                    string airlineName
+                                )
+                                private
+    {
+        require((airlines[registeringAirline].approved && airlines[registeringAirline].active) || airlineCount == 0,
+         "Registering airline is not authorized to register other airline");
+
+        airlineCount++;
+        uint id = airlineCount;
+        Airline memory airlineObj = Airline(id, airlineName, true, false, 0, 0, 0);
+        airlines[newAirline] = airlineObj;
+
+        emit AirlineRegistration(newAirline, id, airlineName);
+        emit AirlineApproval(newAirline, id, airlineName);
     }
 
+    function multiPartyConsensusRegister
+                                        (
+                                            address registeringAirline,
+                                            address newAirline,
+                                            string airlineName
+                                        )
+                                        private
+    {
+        require(registeringAirline == newAirline, "Airlines should only register for themselves");
+
+        uint votesNeeded = airlineCount * 50 / 100;
+        airlineCount++;
+        uint id = airlineCount;
+        Airline memory airlineObj = Airline(id, airlineName, false, false, 0, votesNeeded, 0);
+        airlines[newAirline] = airlineObj;
+
+        emit AirlineRegistration(newAirline, id, airlineName);
+    }
+
+    function approveAirline(
+                            address approvingAirline,
+                            address airline
+                        )
+                        requireIsCallerAuthorized
+                        requireIsOperational
+                        external
+    {
+        require(airlines[approvingAirline].approved, "Approving airline is not authorized to approve other airlines" );
+        require(airlines[airline].approved == false, "Airline has already been approved");
+        require(votersMap[airline][approvingAirline] == false, "Approving airline has already voted");
+
+        votersMap[airline][approvingAirline] = true;
+        airlines[airline].voteCount = airlines[airline].voteCount + 1;
+
+        if (airlines[airline].voteCount >= airlines[airline].votesNeeded) {
+            airlines[airline].approved = true;
+            emit AirlineApproval(airline, airlines[airline].id, airlines[airline].name);
+        }
+
+    }
+
+    function authorizeCaller(address contractAddress, address _address) external requireIsOperational requireContractOwner(_address) {
+        authorizedContracts[contractAddress] = 1;
+    }
 
    /**
     * @dev Buy insurance for a flight
@@ -115,7 +224,7 @@ contract FlightSuretyData {
                             (                             
                             )
                             external
-                            payable
+                            requireIsCallerAuthorized
     {
 
     }
@@ -127,7 +236,7 @@ contract FlightSuretyData {
                                 (
                                 )
                                 external
-                                pure
+                                requireIsCallerAuthorized
     {
     }
     
@@ -140,7 +249,7 @@ contract FlightSuretyData {
                             (
                             )
                             external
-                            pure
+                            requireIsCallerAuthorized
     {
     }
 
@@ -150,11 +259,32 @@ contract FlightSuretyData {
     *
     */   
     function fund
-                            (   
+                            ( 
+                                address airline
                             )
                             public
+                            requireIsCallerAuthorized
+                            requireAirlineRegistered(airline)
                             payable
     {
+        require (msg.value >= 10 ether, "Funding should be at least 10 ETH");
+        airlines[airline].balance = msg.value;
+        airlines[airline].active = true;
+    }
+
+    function isAirline(address airlineAddress) public view returns (bool) {
+        return airlines[airlineAddress].id > 0 ;
+    }
+
+    function fetchAirlineInfo(address airlineAddress) public view returns (uint, string, bool, bool) {
+        require(isAirline(airlineAddress), "Airline does not exist");
+
+        uint id = airlines[airlineAddress].id;
+        string name = airlines[airlineAddress].name;
+        bool approved = airlines[airlineAddress].approved;
+        bool active = airlines[airlineAddress].active;
+
+        return (id, name, approved, active);
     }
 
     function getFlightKey
@@ -178,7 +308,6 @@ contract FlightSuretyData {
                             external 
                             payable 
     {
-        fund();
     }
 
 

@@ -34,7 +34,7 @@ contract FlightSuretyApp {
     }
     mapping(bytes32 => Flight) private flights;
 
- 
+    FlightSuretyData flightSuretyData;
     /********************************************************************************************/
     /*                                       FUNCTION MODIFIERS                                 */
     /********************************************************************************************/
@@ -63,6 +63,11 @@ contract FlightSuretyApp {
         _;
     }
 
+
+    /********************************************************************************************/
+    /*                                       Events                                             */
+    /********************************************************************************************/
+
     /********************************************************************************************/
     /*                                       CONSTRUCTOR                                        */
     /********************************************************************************************/
@@ -73,10 +78,18 @@ contract FlightSuretyApp {
     */
     constructor
                                 (
+                                    address contractAddress,
+                                    address newAirline,
+                                    string airlineName
                                 ) 
                                 public 
     {
+        flightSuretyData = FlightSuretyData(contractAddress);
         contractOwner = msg.sender;
+
+        // Register initial airline upon contract deployment
+        flightSuretyData.authorizeCaller(address(this), msg.sender);
+        flightSuretyData.registerAirline(newAirline, newAirline, airlineName);
     }
 
     /********************************************************************************************/
@@ -101,13 +114,22 @@ contract FlightSuretyApp {
     *
     */   
     function registerAirline
-                            (   
+                            (
+                                address newAirline,
+                                string airlineName
                             )
+                            requireIsOperational
                             external
-                            pure
-                            returns(bool success, uint256 votes)
     {
-        return (success, 0);
+        flightSuretyData.registerAirline(msg.sender, newAirline, airlineName);
+    }
+
+   /**
+    * @dev Airline to fund insurance
+    *
+    */   
+    function fund() external payable {
+        flightSuretyData.fund.value(msg.value)(msg.sender);
     }
 
 
@@ -335,3 +357,9 @@ contract FlightSuretyApp {
 // endregion
 
 }   
+
+contract FlightSuretyData {
+    function registerAirline(address registeringAirline, address newAirline, string airlineName) external;
+    function fund(address airline) external payable;
+    function authorizeCaller(address contractToAuthorize, address sender) external;
+}
