@@ -44,6 +44,8 @@ contract FlightSuretyData {
     event AirlineRegistration(address airlineAddress, uint id, string airlineName);
     event AirlineApproval(address airlineAddress, uint id, string airlineName);
     event AirlineActivation(address airlineAddress);
+    event FlightRegistered(string id, address airline, uint departureTime);
+
 
     /**
     * @dev Constructor
@@ -250,14 +252,12 @@ contract FlightSuretyData {
                             requireIsOperational
                             requireAirlineOperable(airline)
     {
-        bytes32 key = getFlightKey(airline, flightID, timestamp);
+        bytes32 key = getFlightKey(airline, flightID, time);
         require(flights[key].airline == 0, "Flight is already registered");
-        Flight memory newFlight = Flight(flightCount, airline, time, 0, time);
-        flights[key] = newFlight;
+        Flight memory flightObj = Flight(flightID, airline, time, 0, time);
+        flights[key] = flightObj;
 
-        airlinesFlights[airline].push(newFlight.id);
-
-        emit FlightAdded(newFlight.id, newFlight.airline, newFlight.flightCode);
+        emit FlightRegistered(flightID, airline, time);
     }
 
    /**
