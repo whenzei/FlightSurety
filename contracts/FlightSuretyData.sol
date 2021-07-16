@@ -15,6 +15,7 @@ contract FlightSuretyData {
     uint private airlineCount = 0;
     mapping(address => Airline) private airlines;
     mapping(address => mapping(address => bool)) private votersMap;
+    mapping(bytes32 => Flight) flights;
     mapping(address => uint) private authorizedContracts;
 
     uint8 private constant AIRLINES_THRESHOLD = 4;
@@ -27,6 +28,14 @@ contract FlightSuretyData {
         uint balance;
         uint votesNeeded;
         uint voteCount;
+    }
+
+    struct Flight {
+        string id;
+        address airline;
+        uint departureTime;
+        uint status;
+        uint updatedTime;
     }
     /********************************************************************************************/
     /*                                       EVENT DEFINITIONS                                  */
@@ -100,6 +109,12 @@ contract FlightSuretyData {
         _;
     }
 
+    modifier requireAirlineOperable(address airline)
+    {
+        require(airlines[airline].active && airlines[airline].approved, "Airline is not operable");
+        _;
+    }
+
     /********************************************************************************************/
     /*                                       UTILITY FUNCTIONS                                  */
     /********************************************************************************************/
@@ -117,7 +132,9 @@ contract FlightSuretyData {
         return operational;
     }
 
-
+    function authorizeCaller(address contractAddress) external requireIsOperational requireContractOwner {
+        authorizedContracts[contractAddress] = 1;
+    }
 
 
     /**
@@ -170,8 +187,7 @@ contract FlightSuretyData {
                                 )
                                 private
     {
-        require((airlines[registeringAirline].approved && airlines[registeringAirline].active) || airlineCount == 0,
-         "Registering airline is not authorized to register other airline");
+        require((airlines[registeringAirline].approved && airlines[registeringAirline].active), "Registering airline is not authorized to register other airline");
 
         airlineCount++;
         uint id = airlineCount;
@@ -224,8 +240,24 @@ contract FlightSuretyData {
 
     }
 
-    function authorizeCaller(address contractAddress) external requireIsOperational requireContractOwner {
-        authorizedContracts[contractAddress] = 1;
+    function registerFlight (
+                                address airline,
+                                string flightID,
+                                uint time
+                            )
+                            external
+                            requireIsCallerAuthorized
+                            requireIsOperational
+                            requireAirlineOperable(airline)
+    {
+        bytes32 key = getFlightKey(airline, flightID, timestamp);
+        require(flights[key].airline == 0, "Flight is already registered");
+        Flight memory newFlight = Flight(flightCount, airline, time, 0, time);
+        flights[key] = newFlight;
+
+        airlinesFlights[airline].push(newFlight.id);
+
+        emit FlightAdded(newFlight.id, newFlight.airline, newFlight.flightCode);
     }
 
    /**
