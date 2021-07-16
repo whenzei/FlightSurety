@@ -42,10 +42,21 @@ contract FlightSuretyData {
     */
     constructor
                                 (
+                                    address newAirline,
+                                    string airlineName
                                 ) 
                                 public 
     {
         contractOwner = msg.sender;
+
+        // Register initial airline
+        airlineCount++;
+        uint id = airlineCount;
+        Airline memory airlineObj = Airline(id, airlineName, true, false, 0, 0, 0);
+        airlines[newAirline] = airlineObj;
+
+        emit AirlineRegistration(newAirline, id, airlineName);
+        emit AirlineApproval(newAirline, id, airlineName);    
     }
 
     /********************************************************************************************/
@@ -69,9 +80,9 @@ contract FlightSuretyData {
     /**
     * @dev Modifier that requires the "ContractOwner" account to be the function caller
     */
-    modifier requireContractOwner(address _address)
+    modifier requireContractOwner()
     {
-        require(_address == contractOwner, "Caller is not contract owner");
+        require(msg.sender == contractOwner, "Caller is not contract owner");
         _;
     }
 
@@ -114,12 +125,12 @@ contract FlightSuretyData {
     *
     * When operational mode is disabled, all write transactions except for this one will fail
     */    
-    function setOperatingStatus
+    function setOperational
                             (
                                 bool mode
                             ) 
                             external
-                            requireContractOwner(msg.sender)
+                            requireContractOwner
     {
         operational = mode;
     }
@@ -139,13 +150,13 @@ contract FlightSuretyData {
                                 address newAirline,
                                 string airlineName
                             )
-                            external
+                            public
                             requireIsCallerAuthorized
                             requireIsOperational
     {
         require((airlines[newAirline].approved == false), "Airline already registred");
 
-        if (airlineCount <= AIRLINES_THRESHOLD) {
+        if (airlineCount < AIRLINES_THRESHOLD) {
             nonConsensusRegister(registeringAirline, newAirline, airlineName);
         } else {
             multiPartyConsensusRegister(registeringAirline, newAirline, airlineName);
@@ -198,7 +209,8 @@ contract FlightSuretyData {
                         requireIsOperational
                         external
     {
-        require(airlines[approvingAirline].approved, "Approving airline is not authorized to approve other airlines" );
+        require(airlines[approvingAirline].approved, "Approving airline is not approved" );
+        require(airlines[approvingAirline].active, "Approving airline is not active" );
         require(airlines[airline].approved == false, "Airline has already been approved");
         require(votersMap[airline][approvingAirline] == false, "Approving airline has already voted");
 
@@ -212,7 +224,7 @@ contract FlightSuretyData {
 
     }
 
-    function authorizeCaller(address contractAddress, address _address) external requireIsOperational requireContractOwner(_address) {
+    function authorizeCaller(address contractAddress) external requireIsOperational requireContractOwner {
         authorizedContracts[contractAddress] = 1;
     }
 

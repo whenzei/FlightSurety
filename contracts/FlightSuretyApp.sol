@@ -25,7 +25,7 @@ contract FlightSuretyApp {
     uint8 private constant STATUS_CODE_LATE_OTHER = 50;
 
     address private contractOwner;          // Account used to deploy contract
-
+    
     struct Flight {
         bool isRegistered;
         uint8 statusCode;
@@ -49,8 +49,7 @@ contract FlightSuretyApp {
     */
     modifier requireIsOperational() 
     {
-         // Modify to call data contract's status
-        require(true, "Contract is currently not operational");  
+        require(isOperational(), "Contract is currently not operational");  
         _;  // All modifiers require an "_" which indicates where the function body will be added
     }
 
@@ -78,18 +77,12 @@ contract FlightSuretyApp {
     */
     constructor
                                 (
-                                    address contractAddress,
-                                    address newAirline,
-                                    string airlineName
+                                    address contractAddress
                                 ) 
                                 public 
     {
         flightSuretyData = FlightSuretyData(contractAddress);
         contractOwner = msg.sender;
-
-        // Register initial airline upon contract deployment
-        flightSuretyData.authorizeCaller(address(this), msg.sender);
-        flightSuretyData.registerAirline(newAirline, newAirline, airlineName);
     }
 
     /********************************************************************************************/
@@ -98,10 +91,10 @@ contract FlightSuretyApp {
 
     function isOperational() 
                             public 
-                            pure 
+                            view 
                             returns(bool) 
     {
-        return true;  // Modify to call data contract's status
+        return flightSuretyData.isOperational();
     }
 
     /********************************************************************************************/
@@ -119,7 +112,7 @@ contract FlightSuretyApp {
                                 string airlineName
                             )
                             requireIsOperational
-                            external
+                            public
     {
         flightSuretyData.registerAirline(msg.sender, newAirline, airlineName);
     }
@@ -132,6 +125,13 @@ contract FlightSuretyApp {
         flightSuretyData.fund.value(msg.value)(msg.sender);
     }
 
+       /**
+    * @dev Approve an airline
+    *
+    */   
+    function approveAirline(address airline) external {
+        flightSuretyData.approveAirline(msg.sender, airline);
+    }
 
    /**
     * @dev Register a future flight for insuring.
@@ -359,7 +359,9 @@ contract FlightSuretyApp {
 }   
 
 contract FlightSuretyData {
-    function registerAirline(address registeringAirline, address newAirline, string airlineName) external;
+    function registerAirline(address registeringAirline, address newAirline, string airlineName) public;
     function fund(address airline) external payable;
-    function authorizeCaller(address contractToAuthorize, address sender) external;
+    function approveAirline(address approvingAirline, address airline) external;
+    function isOperational() public view returns (bool);
+
 }
