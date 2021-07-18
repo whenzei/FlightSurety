@@ -45,7 +45,7 @@ contract FlightSuretyData {
     event AirlineApproval(address airlineAddress, uint id, string airlineName);
     event AirlineActivation(address airlineAddress);
     event FlightRegistered(string id, address airline, uint departureTime);
-
+    event FlightStatusUpdated(bytes32 key, uint status);
 
     /**
     * @dev Constructor
@@ -114,6 +114,11 @@ contract FlightSuretyData {
     modifier requireAirlineOperable(address airline)
     {
         require(airlines[airline].active && airlines[airline].approved, "Airline is not operable");
+        _;
+    }
+
+    modifier requireFlightExists(bytes32 key) {
+        require(bytes(flights[key].id).length > 0, "Flight should exist");
         _;
     }
 
@@ -291,6 +296,21 @@ contract FlightSuretyData {
         Flight memory flight = flights[_key];
         return (flight.airline, flight.id, flight.status, flight.departureTime, flight.updatedTime);
     }
+
+    function updateFlightDepartureStatus(
+                                        bytes32 key,
+                                        uint flightStatus,
+                                        uint lastUpdated
+                                    )
+                                    external
+                                    requireIsOperational
+                                    requireIsCallerAuthorized
+                                    requireFlightExists(key)
+    {
+        flights[key].status = flightStatus;
+        flights[key].updatedTime = lastUpdated;
+        emit FlightStatusUpdated(key, flightStatus);
+    }    
 
    /**
     * @dev Buy insurance for a flight

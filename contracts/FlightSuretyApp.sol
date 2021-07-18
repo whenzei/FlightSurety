@@ -382,4 +382,5 @@ contract FlightSuretyData {
     function registerFlight (address airline, string flightID, uint time) external;
     function isOperational() public view returns (bool status);
     function getFlightInfo(address airline, string flightID, uint departureTime) public view returns (address, string, uint, uint, uint);
+    function updateFlightDepartureStatus(bytes32 key, uint flightStatus,uint lastUpdated) external;
 }
