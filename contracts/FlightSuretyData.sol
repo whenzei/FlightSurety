@@ -242,6 +242,22 @@ contract FlightSuretyData {
 
     }
 
+    
+    function isAirline(address airlineAddress) public view returns (bool) {
+        return airlines[airlineAddress].id > 0 ;
+    }
+
+    function fetchAirlineInfo(address airlineAddress) public view returns (uint, string, bool, bool) {
+        require(isAirline(airlineAddress), "Airline does not exist");
+
+        uint id = airlines[airlineAddress].id;
+        string memory name = airlines[airlineAddress].name;
+        bool approved = airlines[airlineAddress].approved;
+        bool active = airlines[airlineAddress].active;
+
+        return (id, name, approved, active);
+    }
+
     function registerFlight (
                                 address airline,
                                 string flightID,
@@ -258,6 +274,22 @@ contract FlightSuretyData {
         flights[key] = flightObj;
 
         emit FlightRegistered(flightID, airline, time);
+    }
+
+    function getFlightInfo  (
+                            address airline,
+                            string flightID,
+                            uint time
+                        )
+                        external
+                        view
+                        requireIsOperational
+                        requireIsCallerAuthorized
+                        returns (address, string, uint, uint, uint)
+    {
+        bytes32 _key = getFlightKey(airline, flightID, time);
+        Flight memory flight = flights[_key];
+        return (flight.airline, flight.id, flight.status, flight.departureTime, flight.updatedTime);
     }
 
    /**
@@ -316,21 +348,6 @@ contract FlightSuretyData {
         airlines[airline].active = true;
     }
 
-    function isAirline(address airlineAddress) public view returns (bool) {
-        return airlines[airlineAddress].id > 0 ;
-    }
-
-    function fetchAirlineInfo(address airlineAddress) public view returns (uint, string, bool, bool) {
-        require(isAirline(airlineAddress), "Airline does not exist");
-
-        uint id = airlines[airlineAddress].id;
-        string name = airlines[airlineAddress].name;
-        bool approved = airlines[airlineAddress].approved;
-        bool active = airlines[airlineAddress].active;
-
-        return (id, name, approved, active);
-    }
-
     function getFlightKey
                         (
                             address airline,
@@ -343,6 +360,7 @@ contract FlightSuretyData {
     {
         return keccak256(abi.encodePacked(airline, flight, timestamp));
     }
+
 
     /**
     * @dev Fallback function for funding smart contract.

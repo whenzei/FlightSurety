@@ -132,18 +132,35 @@ contract FlightSuretyApp {
     function approveAirline(address airline) external {
         flightSuretyData.approveAirline(msg.sender, airline);
     }
-
+    
    /**
     * @dev Register a future flight for insuring.
     *
     */  
     function registerFlight
                                 (
+                                    string flightID,
+                                    uint time  
                                 )
                                 external
-                                pure
     {
+        flightSuretyData.registerFlight(msg.sender, flightID, time);
+    }
 
+   /**
+    * @dev Retrieve flight info
+    *
+    */  
+    function getFlightInfo  (
+                                address airline,
+                                string flightID,
+                                uint departureTime
+                            )
+                            external
+                            view
+                            returns (address, string, uint, uint, uint)
+    {
+        return flightSuretyData.getFlightInfo(airline, flightID, departureTime);
     }
     
    /**
@@ -362,6 +379,7 @@ contract FlightSuretyData {
     function registerAirline(address registeringAirline, address newAirline, string airlineName) public;
     function fund(address airline) external payable;
     function approveAirline(address approvingAirline, address airline) external;
-    function isOperational() public view returns (bool);
-
+    function registerFlight (address airline, string flightID, uint time) external;
+    function isOperational() public view returns (bool status);
+    function getFlightInfo(address airline, string flightID, uint departureTime) public view returns (address, string, uint, uint, uint);
 }
