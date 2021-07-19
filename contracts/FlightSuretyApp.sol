@@ -16,24 +16,8 @@ contract FlightSuretyApp {
     /*                                       DATA VARIABLES                                     */
     /********************************************************************************************/
 
-    // Flight status codees
-    uint8 private constant STATUS_CODE_UNKNOWN = 0;
-    uint8 private constant STATUS_CODE_ON_TIME = 10;
-    uint8 private constant STATUS_CODE_LATE_AIRLINE = 20;
-    uint8 private constant STATUS_CODE_LATE_WEATHER = 30;
-    uint8 private constant STATUS_CODE_LATE_TECHNICAL = 40;
-    uint8 private constant STATUS_CODE_LATE_OTHER = 50;
-
     address private contractOwner;          // Account used to deploy contract
     
-    struct Flight {
-        bool isRegistered;
-        uint8 statusCode;
-        uint256 updatedTimestamp;        
-        address airline;
-    }
-    mapping(bytes32 => Flight) private flights;
-
     FlightSuretyData flightSuretyData;
     /********************************************************************************************/
     /*                                       FUNCTION MODIFIERS                                 */
@@ -175,8 +159,9 @@ contract FlightSuretyApp {
                                     uint8 statusCode
                                 )
                                 internal
-                                pure
     {
+        bytes32 key = getFlightKey(airline, flight, timestamp);
+        flightSuretyData.updateFlightStatus(key, statusCode, block.timestamp);
     }
 
 
@@ -201,6 +186,32 @@ contract FlightSuretyApp {
         emit OracleRequest(index, airline, flight, timestamp);
     } 
 
+    function buyInsurance(
+                            address airline,
+                            string memory flightID,
+                            uint departureTime
+                        )
+                        public
+                        payable
+    {
+        require(departureTime > block.timestamp, "Not allowed to buy insurance after departure time");
+        bytes32 key = getFlightKey(airline, flightID, departureTime);
+        flightSuretyData.buyInsurance.value(msg.value)(key, msg.sender);
+    }
+
+    function fetchInsuranceInfo(
+                            address airline,
+                            string memory flightID,
+                            uint departureTime
+                        )
+                        view
+                        public
+                        returns(address, uint, uint, bool)
+    {
+        bytes32 key = getFlightKey(airline, flightID, departureTime);
+        (address passenger, uint cost, uint claimableAmount, bool claimed) = flightSuretyData.fetchInsuranceInfo(key, msg.sender);
+        return (passenger, cost, claimableAmount, claimed);
+    }
 
 // region ORACLE MANAGEMENT
 
@@ -382,5 +393,8 @@ contract FlightSuretyData {
     function registerFlight (address airline, string flightID, uint time) external;
     function isOperational() public view returns (bool status);
     function getFlightInfo(address airline, string flightID, uint departureTime) public view returns (address, string, uint, uint, uint);
-    function updateFlightDepartureStatus(bytes32 key, uint flightStatus,uint lastUpdated) external;
+    function updateFlightStatus(bytes32 key, uint flightStatus,uint lastUpdated) external;
+    function buyInsurance(bytes32 key, address passenger) external payable;
+    function fetchInsuranceInfo(bytes32 key, address passenger) view public returns (address, uint, uint, bool);
+
 }

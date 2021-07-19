@@ -17,9 +17,21 @@ contract FlightSuretyData {
     mapping(address => mapping(address => bool)) private votersMap;
     mapping(bytes32 => Flight) flights;
     mapping(address => uint) private authorizedContracts;
+    mapping(bytes32 => Insurance[]) private insurances;
+    mapping(bytes32 => bool) private insuranceCredited;
+
 
     uint8 private constant AIRLINES_THRESHOLD = 4;
+    uint private constant MAX_INSURANCE_COST = 1 ether;
     
+    // Flight status codes
+    uint8 private constant STATUS_CODE_UNKNOWN = 0;
+    uint8 private constant STATUS_CODE_ON_TIME = 10;
+    uint8 private constant STATUS_CODE_LATE_AIRLINE = 20;
+    uint8 private constant STATUS_CODE_LATE_WEATHER = 30;
+    uint8 private constant STATUS_CODE_LATE_TECHNICAL = 40;
+    uint8 private constant STATUS_CODE_LATE_OTHER = 50;
+
     struct Airline {
         uint id;
         string name;
@@ -36,6 +48,13 @@ contract FlightSuretyData {
         uint departureTime;
         uint status;
         uint updatedTime;
+    }
+
+    struct Insurance {
+        address passenger;
+        uint cost;
+        uint claimableAmount;
+        bool claimed;
     }
     /********************************************************************************************/
     /*                                       EVENT DEFINITIONS                                  */
@@ -292,20 +311,20 @@ contract FlightSuretyData {
                         requireIsCallerAuthorized
                         returns (address, string, uint, uint, uint)
     {
-        bytes32 _key = getFlightKey(airline, flightID, time);
-        Flight memory flight = flights[_key];
+        bytes32 key = getFlightKey(airline, flightID, time);
+        Flight memory flight = flights[key];
         return (flight.airline, flight.id, flight.status, flight.departureTime, flight.updatedTime);
     }
 
-    function updateFlightDepartureStatus(
+    function updateFlightStatus(
                                         bytes32 key,
                                         uint flightStatus,
                                         uint lastUpdated
-                                    )
-                                    external
-                                    requireIsOperational
-                                    requireIsCallerAuthorized
-                                    requireFlightExists(key)
+                                )
+                                external
+                                requireIsOperational
+                                requireIsCallerAuthorized
+                                requireFlightExists(key)
     {
         flights[key].status = flightStatus;
         flights[key].updatedTime = lastUpdated;
@@ -316,13 +335,57 @@ contract FlightSuretyData {
     * @dev Buy insurance for a flight
     *
     */   
-    function buy
-                            (                             
-                            )
-                            external
-                            requireIsCallerAuthorized
+    function buyInsurance (
+                    bytes32 flightKey,
+                    address passenger                       
+                )
+                external
+                payable
+                requireIsCallerAuthorized
+                requireIsOperational
+                requireFlightExists(flightKey)
     {
+        require(msg.value > 0, "Insurance cost cannot be 0");
+        require(msg.value <= MAX_INSURANCE_COST, "Maximum payable for insurance is 1 ETH");
 
+        bool isDuplicate = false;
+        Insurance[] storage insuredPassengers = insurances[flightKey];
+        for (uint i = 0; i < insuredPassengers.length; i++) {
+            if (passenger == insuredPassengers[i].passenger) {
+                isDuplicate = true;
+                break;
+            }
+        }
+        require(!isDuplicate, "Passenger has already bought insurance for flight");
+        Insurance memory insuranceObj = Insurance(passenger, msg.value, 0, false); 
+        insuredPassengers.push(insuranceObj);
+    }
+
+    function fetchInsuranceInfo(
+                                    bytes32 flightKey,
+                                    address passenger
+                                )
+                                view
+                                public
+                                requireIsOperational
+                                requireFlightExists(flightKey)
+                                returns(address, uint, uint, bool)
+    {
+        Insurance[] storage insuredPassengers = insurances[flightKey];
+        uint insuranceCost;
+        uint claimableAmount;
+        bool claimed;
+
+        for (uint i = 0; i < insuredPassengers.length; i++) {
+            if (passenger == insuredPassengers[i].passenger) {
+                insuranceCost = insuredPassengers[i].cost;
+                claimableAmount = insuredPassengers[i].claimableAmount;
+                claimed = insuredPassengers[i].claimed;
+                break;
+            }
+        }
+
+        return (passenger, insuranceCost, claimableAmount, claimed);
     }
 
     /**
@@ -330,10 +393,27 @@ contract FlightSuretyData {
     */
     function creditInsurees
                                 (
+                                    bytes32 flightKey,
+                                    address airline
                                 )
                                 external
+                                requireIsOperational
                                 requireIsCallerAuthorized
+                                requireFlightExists(flightKey)
     {
+        Flight storage flight = flights[flightKey];
+        require(flight.airline == airline, "Flight airline not matching sender");
+        require(flight.status == STATUS_CODE_LATE_AIRLINE, "Insurance not creditable due to flight status");
+        require(!insuranceCredited[flightKey], "Insurees has already been credited");
+
+        insuranceCredited[flightKey] = true;
+
+        Insurance[] storage insuredPassengers = insurances[flightKey];
+        for (uint i = 0; i < insuredPassengers.length; i++) {
+            // Payout is 1.5X of insurance cost
+            insuredPassengers[i].claimableAmount = insuredPassengers[i].claimableAmount.mul(150).div(100);
+        }
+
     }
     
 
@@ -364,7 +444,7 @@ contract FlightSuretyData {
                             payable
     {
         require (msg.value >= 10 ether, "Funding should be at least 10 ETH");
-        airlines[airline].balance = msg.value;
+        airlines[airline].balance = airlines[airline].balance.add(msg.value);
         airlines[airline].active = true;
     }
 
@@ -380,7 +460,6 @@ contract FlightSuretyData {
     {
         return keccak256(abi.encodePacked(airline, flight, timestamp));
     }
-
 
     /**
     * @dev Fallback function for funding smart contract.
