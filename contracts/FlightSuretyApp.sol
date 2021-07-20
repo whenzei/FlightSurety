@@ -105,7 +105,7 @@ contract FlightSuretyApp {
     * @dev Airline to fund insurance
     *
     */   
-    function fund() external payable {
+    function fund() requireIsOperational external payable {
         flightSuretyData.fund.value(msg.value)(msg.sender);
     }
 
@@ -113,7 +113,7 @@ contract FlightSuretyApp {
     * @dev Approve an airline
     *
     */   
-    function approveAirline(address airline) external {
+    function approveAirline(address airline) requireIsOperational external {
         flightSuretyData.approveAirline(msg.sender, airline);
     }
     
@@ -126,6 +126,7 @@ contract FlightSuretyApp {
                                     string flightID,
                                     uint time  
                                 )
+                                requireIsOperational
                                 external
     {
         flightSuretyData.registerFlight(msg.sender, flightID, time);
@@ -141,6 +142,7 @@ contract FlightSuretyApp {
                                 uint departureTime
                             )
                             external
+                            requireIsOperational
                             view
                             returns (address, string, uint, uint, uint)
     {
@@ -164,6 +166,22 @@ contract FlightSuretyApp {
         flightSuretyData.updateFlightStatus(key, statusCode, block.timestamp);
     }
 
+    // For testing purposes
+    function processFlightStatusTestMode
+                                        (
+                                            address airline,
+                                            string flight,
+                                            uint256 timestamp,
+                                            uint8 statusCode
+                                        )
+                                        external
+                                        requireContractOwner
+                                        requireIsOperational
+    {
+        bytes32 key = getFlightKey(airline, flight, timestamp);
+        flightSuretyData.updateFlightStatus(key, statusCode, block.timestamp);
+    }
+
 
     // Generate a request for oracles to fetch flight information
     function fetchFlightStatus
@@ -172,6 +190,7 @@ contract FlightSuretyApp {
                             string flight,
                             uint256 timestamp                            
                         )
+                        requireIsOperational
                         external
     {
         uint8 index = getRandomIndex(msg.sender);
@@ -193,10 +212,34 @@ contract FlightSuretyApp {
                         )
                         public
                         payable
+                        requireIsOperational
     {
         require(departureTime > block.timestamp, "Not allowed to buy insurance after departure time");
         bytes32 key = getFlightKey(airline, flightID, departureTime);
         flightSuretyData.buyInsurance.value(msg.value)(key, msg.sender);
+    }
+
+    function creditInsurees(
+                            string flightID,
+                            uint departureTime
+                        )
+                        external
+                        requireIsOperational
+    {
+        bytes32 key = getFlightKey(msg.sender, flightID, departureTime);
+        flightSuretyData.creditInsurees(key, msg.sender);
+    }
+
+    function claimInsurance(
+                            address airline,
+                            string flightID,
+                            uint departureTime
+                        )
+                        external
+                        requireIsOperational
+    {
+        bytes32 key = getFlightKey(airline, flightID, departureTime);
+        flightSuretyData.pay(key, msg.sender);
     }
 
     function fetchInsuranceInfo(
@@ -206,6 +249,7 @@ contract FlightSuretyApp {
                         )
                         view
                         public
+                        requireIsOperational
                         returns(address, uint, uint, bool)
     {
         bytes32 key = getFlightKey(airline, flightID, departureTime);
@@ -396,5 +440,6 @@ contract FlightSuretyData {
     function updateFlightStatus(bytes32 key, uint flightStatus,uint lastUpdated) external;
     function buyInsurance(bytes32 key, address passenger) external payable;
     function fetchInsuranceInfo(bytes32 key, address passenger) view public returns (address, uint, uint, bool);
-
+    function creditInsurees(bytes32 key, address airline) external;
+    function pay(bytes32 key, address passenger) external;
 }

@@ -61,28 +61,50 @@ contract('Flight Surety Tests', async (accounts) => {
     // });
 
 
-    it('Airline can register a flight', async () => {
+    // it('Airline can register a flight', async () => {
 
-        // ARRANGE
-        let flightID = "FL1234";
-        let time = "111111111111111";
+    //     // ARRANGE
+    //     let flightID = "FL1234";
+    //     let time = "111111111111111";
 
-        // ACT
-        await config.flightSuretyApp.fund({from: config.firstAirline, value: web3.utils.toWei('10', "ether")});
-        await config.flightSuretyApp.registerFlight(flightID, time, {from: config.firstAirline});
+    //     // ACT
+    //     await config.flightSuretyApp.fund({from: config.firstAirline, value: web3.utils.toWei('10', "ether")});
+    //     await config.flightSuretyApp.registerFlight(flightID, time, {from: config.firstAirline});
         
-        let result = await config.flightSuretyApp.getFlightInfo(config.firstAirline, flightID, time);
+    //     let result = await config.flightSuretyApp.getFlightInfo(config.firstAirline, flightID, time);
 
-        // ASSERT
-        assert.equal(result[0], config.firstAirline, "Incorrect airline returned");
-        assert.equal(result[1], flightID, "Incorrect flight ID returned");
-        assert.equal(result[2], 0, "Incorrect flight status returned");
-        assert.equal(result[3], time, "Incorrect departure time returned");
-        assert.equal(result[4], time, "Incorrect updated time returned");
+    //     // ASSERT
+    //     assert.equal(result[0], config.firstAirline, "Incorrect airline returned");
+    //     assert.equal(result[1], flightID, "Incorrect flight ID returned");
+    //     assert.equal(result[2], 0, "Incorrect flight status returned");
+    //     assert.equal(result[3], time, "Incorrect departure time returned");
+    //     assert.equal(result[4], time, "Incorrect updated time returned");
 
-    });
+    // });
 
-    it('Passenger can buy an insurance for a flight', async () => {
+    // it('Passenger can buy an insurance for a flight', async () => {
+
+    //     // ARRANGE
+    //     let flightID = "FL1234";
+    //     let time = "111111111111111";
+    //     let passenger = accounts[9];
+    //     let insuranceCost = web3.utils.toWei('1', "ether");
+
+    //     // ACT
+    //     await config.flightSuretyApp.fund({from: config.firstAirline, value: web3.utils.toWei('10', "ether")});
+    //     await config.flightSuretyApp.registerFlight(flightID, time, {from: config.firstAirline});
+    //     await config.flightSuretyApp.buyInsurance(config.firstAirline, flightID, time, {from: passenger, value: insuranceCost});
+    //     let result = await config.flightSuretyApp.fetchInsuranceInfo(config.firstAirline, flightID, time, {from: passenger});
+
+    //     // ASSERT
+    //     assert.equal(result[0], passenger, "Passenger address mismatch");
+    //     assert.equal(result[1], insuranceCost, "Insurance cost mismatch");
+    //     assert.equal(result[2], 0, "Insurance should not have any claimable amount");
+    //     assert.equal(result[3], false, "Insurance should not be claimed");
+
+    // });
+
+    it('Passenger can claim their insurance once it is credited', async () => {
 
         // ARRANGE
         let flightID = "FL1234";
@@ -94,13 +116,26 @@ contract('Flight Surety Tests', async (accounts) => {
         await config.flightSuretyApp.fund({from: config.firstAirline, value: web3.utils.toWei('10', "ether")});
         await config.flightSuretyApp.registerFlight(flightID, time, {from: config.firstAirline});
         await config.flightSuretyApp.buyInsurance(config.firstAirline, flightID, time, {from: passenger, value: insuranceCost});
-        let result = await config.flightSuretyApp.fetchInsuranceInfo(config.firstAirline, flightID, time, {from: passenger});
+
+        // Set flight status as STATUS_CODE_LATE_AIRLINE(20)
+        await config.flightSuretyApp.processFlightStatusTestMode(config.firstAirline, flightID, time, 20, {from: config.owner});
+        let flightStatus = await config.flightSuretyApp.getFlightInfo(config.firstAirline, flightID, time);
+        assert.equal(flightStatus[2], 20, "Flight status is incorrect");
+
+        // Credit insurees
+        await config.flightSuretyApp.creditInsurees(flightID, time, {from: config.firstAirline});
+        let insuranceResult = await config.flightSuretyApp.fetchInsuranceInfo(config.firstAirline, flightID, time, {from: passenger});
+        assert.equal(insuranceResult[2], insuranceCost * 1.5, "Insurance claimable is not 1.5x cost");
+        let claimableAmount = insuranceResult[2];
+
+        let passengerBalanceBefore = await web3.eth.getBalance(passenger);
+        await config.flightSuretyApp.claimInsurance(config.firstAirline, flightID, time, {from: passenger, gasPrice: 0});
+        let passengerBalanceAfter = await web3.eth.getBalance(passenger);
 
         // ASSERT
-        assert.equal(result[0], passenger, "Passenger address mismatch");
-        assert.equal(result[1], insuranceCost, "Insurance cost mismatch");
-        assert.equal(result[2], 0, "Insurance should not have any claimable amount");
-        assert.equal(result[3], false, "Insurance should not be claimed");
+        assert.equal(passengerBalanceBefore,
+             new web3.utils.BN(passengerBalanceAfter).sub(new web3.utils.BN(claimableAmount)), "Insurance payout amount incorrect");
+
 
     });
 

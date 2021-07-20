@@ -411,7 +411,7 @@ contract FlightSuretyData {
         Insurance[] storage insuredPassengers = insurances[flightKey];
         for (uint i = 0; i < insuredPassengers.length; i++) {
             // Payout is 1.5X of insurance cost
-            insuredPassengers[i].claimableAmount = insuredPassengers[i].claimableAmount.mul(150).div(100);
+            insuredPassengers[i].claimableAmount = insuredPassengers[i].cost.mul(150).div(100);
         }
 
     }
@@ -423,10 +423,29 @@ contract FlightSuretyData {
     */
     function pay
                             (
+                                bytes32 flightKey,
+                                address passenger
                             )
                             external
+                            requireIsOperational
                             requireIsCallerAuthorized
+                            requireFlightExists(flightKey)
     {
+        require(insuranceCredited[flightKey], "Insurance has not been credited");
+        Insurance[] storage insuredPassengers = insurances[flightKey];
+        for (uint i = 0; i < insuredPassengers.length; i++) {
+            if (insuredPassengers[i].passenger == passenger) {
+                uint claimableAmount = insuredPassengers[i].claimableAmount;
+                bool claimed = insuredPassengers[i].claimed;
+                require(!claimed, "Claim for insurance already made");
+                require(claimableAmount > 0, "Claimable amount is 0");
+
+                insuredPassengers[i].claimableAmount = 0;
+                insuredPassengers[i].claimed = true;
+                passenger.transfer(claimableAmount);
+                break;
+            }
+        }
     }
 
    /**
