@@ -6,7 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>FlightSurety</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.1.1/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
     <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
 </head>
 
 <body>
@@ -22,12 +25,57 @@
     <main class="container">
 
         <div id="display-wrapper" class="top-20">
-        </div>
-        <div class="row top-20">
-            <label class="form">Flight</label> <input type="text" id="flight-number"> <btn class="btn btn-primary" id="submit-oracle">Submit to Oracles</btn>
-        </div>
-    </main>
 
+        </div>
+        <div id="display-flight" class="top-20">
+            
+        </div>
+        <div class="top-20">
+          <button style="display:none" id="oracle-response" type="button">Track Flight Status!</button>
+          <span id='holdIndex' style="display: none"></span>
+        </div>
+        <div id="withdrawn" class="top-20" style="display: none">
+          Successfuly withdrawn <span id="withdrawn-value"></span></div>
+        </div>
+
+        <div class="alert alert-light" role="alert" style="display:none" id="submission-info">
+        </div>
+        
+        <div class="alert alert-dark" role="alert" style="display:none" id="status-alert">
+        </div>
+         
+        <div class="row top-20">
+            <label class="form">Flight</label> 
+            <!-- <input type="text" id="flight-number">  -->
+            <select id="flight"></select>
+            <btn class="btn btn-primary" id="submit-oracle">Submit to Oracles</btn>
+        </div>
+        <div class="top-20">
+          <div id="table-report">
+          <table class="table">
+              <thead class="table-head">
+                   <tr>
+                      <th>Flight Info:</th>
+                      <th>Airline Address</th>
+                      <th>Flight ID</th>
+                      <th>Departure Timestamp</th>
+                      <th>Flight Status</th>
+                      <th>Claimable Amount</th>
+                  </tr>
+              </thead>
+               <tbody>
+                  <tr>
+                      <td></td>
+                      <td><p id="airline-address-display"></p></td>
+                      <td><p id="flight-id-display"></p></td>
+                      <td><p id="departure-time-display"></p></td>
+                      <td><p id="status-code-display"></p></td>
+                      <td><p id="claimable-amount-display"></p>&nbsp;<btn style="display: none" type="button" class="btn btn-primary" id="withdraw-funds">Claim</btn></td>
+                  </tr>
+              </tbody>
+          </table>
+      </div>
+    </main>
 </body>
 
 </html>

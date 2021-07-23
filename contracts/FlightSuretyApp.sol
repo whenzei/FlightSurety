@@ -48,8 +48,13 @@ contract FlightSuretyApp {
 
 
     /********************************************************************************************/
-    /*                                       Events                                             */
+    /*                                       EVENT DEFINITIONS                                  */
     /********************************************************************************************/
+    event FlightRegistered(address airline, string id, uint departureTime);
+    event FlightStatusUpdated(bytes32 key, uint status, uint updatedTime);
+    event AirlineRegistration(address airlineAddress, string airlineName);
+    event AirlineApproval(address airlineAddress);
+    event AirlineActivation(address airlineAddress);
 
     /********************************************************************************************/
     /*                                       CONSTRUCTOR                                        */
@@ -99,6 +104,7 @@ contract FlightSuretyApp {
                             public
     {
         flightSuretyData.registerAirline(msg.sender, newAirline, airlineName);
+        emit AirlineRegistration(newAirline, airlineName);
     }
 
    /**
@@ -107,6 +113,7 @@ contract FlightSuretyApp {
     */   
     function fund() requireIsOperational external payable {
         flightSuretyData.fund.value(msg.value)(msg.sender);
+        emit AirlineActivation(msg.sender);
     }
 
        /**
@@ -115,6 +122,7 @@ contract FlightSuretyApp {
     */   
     function approveAirline(address airline) requireIsOperational external {
         flightSuretyData.approveAirline(msg.sender, airline);
+        emit AirlineApproval(airline);
     }
     
    /**
@@ -130,6 +138,7 @@ contract FlightSuretyApp {
                                 external
     {
         flightSuretyData.registerFlight(msg.sender, flightID, time);
+        emit FlightRegistered(msg.sender, flightID, time);
     }
 
    /**
@@ -164,6 +173,7 @@ contract FlightSuretyApp {
     {
         bytes32 key = getFlightKey(airline, flight, timestamp);
         flightSuretyData.updateFlightStatus(key, statusCode, block.timestamp);
+        emit FlightStatusUpdated(key, statusCode, block.timestamp);
     }
 
     // For testing purposes
@@ -180,6 +190,7 @@ contract FlightSuretyApp {
     {
         bytes32 key = getFlightKey(airline, flight, timestamp);
         flightSuretyData.updateFlightStatus(key, statusCode, block.timestamp);
+        emit FlightStatusUpdated(key, statusCode, block.timestamp);
     }
 
 
@@ -300,7 +311,7 @@ contract FlightSuretyApp {
     // they fetch data and submit a response
     event OracleRequest(uint8 index, address airline, string flight, uint256 timestamp);
 
-
+    
     // Register an oracle with the contract
     function registerOracle
                             (

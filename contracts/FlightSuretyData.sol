@@ -56,15 +56,7 @@ contract FlightSuretyData {
         uint claimableAmount;
         bool claimed;
     }
-    /********************************************************************************************/
-    /*                                       EVENT DEFINITIONS                                  */
-    /********************************************************************************************/
 
-    event AirlineRegistration(address airlineAddress, uint id, string airlineName);
-    event AirlineApproval(address airlineAddress, uint id, string airlineName);
-    event AirlineActivation(address airlineAddress);
-    event FlightRegistered(string id, address airline, uint departureTime);
-    event FlightStatusUpdated(bytes32 key, uint status);
 
     /**
     * @dev Constructor
@@ -84,9 +76,6 @@ contract FlightSuretyData {
         uint id = airlineCount;
         Airline memory airlineObj = Airline(id, airlineName, true, false, 0, 0, 0);
         airlines[newAirline] = airlineObj;
-
-        emit AirlineRegistration(newAirline, id, airlineName);
-        emit AirlineApproval(newAirline, id, airlineName);    
     }
 
     /********************************************************************************************/
@@ -126,7 +115,7 @@ contract FlightSuretyData {
 
     modifier requireIsCallerAuthorized()
     {
-        require(authorizedContracts[msg.sender] == 1, "Caller is not contract owner");
+        require(authorizedContracts[msg.sender] == 1, "Caller is not authorized");
         _;
     }
 
@@ -178,6 +167,10 @@ contract FlightSuretyData {
         operational = mode;
     }
 
+    function isContractAuthorized(address contractAddress) view public returns(bool){
+        return authorizedContracts[contractAddress] == 1;
+    }
+
     /********************************************************************************************/
     /*                                     SMART CONTRACT FUNCTIONS                             */
     /********************************************************************************************/
@@ -219,9 +212,6 @@ contract FlightSuretyData {
         uint id = airlineCount;
         Airline memory airlineObj = Airline(id, airlineName, true, false, 0, 0, 0);
         airlines[newAirline] = airlineObj;
-
-        emit AirlineRegistration(newAirline, id, airlineName);
-        emit AirlineApproval(newAirline, id, airlineName);
     }
 
     function multiPartyConsensusRegister
@@ -239,8 +229,6 @@ contract FlightSuretyData {
         uint id = airlineCount;
         Airline memory airlineObj = Airline(id, airlineName, false, false, 0, votesNeeded, 0);
         airlines[newAirline] = airlineObj;
-
-        emit AirlineRegistration(newAirline, id, airlineName);
     }
 
     function approveAirline(
@@ -261,7 +249,6 @@ contract FlightSuretyData {
 
         if (airlines[airline].voteCount >= airlines[airline].votesNeeded) {
             airlines[airline].approved = true;
-            emit AirlineApproval(airline, airlines[airline].id, airlines[airline].name);
         }
 
     }
@@ -283,21 +270,26 @@ contract FlightSuretyData {
     }
 
     function registerFlight (
-                                address airline,
+                                address airlineAddress,
                                 string flightID,
-                                uint time
+                                uint departureTime
                             )
                             external
                             requireIsCallerAuthorized
                             requireIsOperational
-                            requireAirlineOperable(airline)
+                            requireAirlineOperable(airlineAddress)
     {
-        bytes32 key = getFlightKey(airline, flightID, time);
-        require(flights[key].airline == 0, "Flight is already registered");
-        Flight memory flightObj = Flight(flightID, airline, time, 0, time);
-        flights[key] = flightObj;
+        bytes32 key = getFlightKey(airlineAddress, flightID, departureTime);
+        require(flights[key].departureTime == uint(0), "Flight is already registered");
+        Flight memory flightObj = Flight({
+                id: flightID,
+                airline: airlineAddress,
+                departureTime: departureTime,
+                status: 0,
+                updatedTime: departureTime
+            });
 
-        emit FlightRegistered(flightID, airline, time);
+        flights[key] = flightObj;
     }
 
     function getFlightInfo  (
@@ -328,7 +320,6 @@ contract FlightSuretyData {
     {
         flights[key].status = flightStatus;
         flights[key].updatedTime = lastUpdated;
-        emit FlightStatusUpdated(key, flightStatus);
     }    
 
    /**
