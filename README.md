@@ -2,42 +2,52 @@
 
 FlightSurety is a sample application project for Udacity's Blockchain course.
 
-## Install
+## Project Prerequisites
 
-This repository contains Smart Contract code in Solidity (using Truffle), tests (also using Truffle), dApp scaffolding (using HTML, CSS and JS) and server app scaffolding.
+Please ensure that you have the follow installed on your machine:
 
-To install, download or clone the repo, then:
+* Node version >= 12
+* Ganache
 
-`npm install`
+## Setup/Run
+* To install, download or clone the repo, then:<br/>
+`npm install`<br/>
 `truffle compile`
+* Run Ganache and make sure that there are at least 40 accounts.
+* Specify the correct endpoint in `truffle-config.js` before deploying the contract:<br/>
+`truffle migrate --reset`
+* Start the server and dapp client:<br/>
+`npm run server`<br/>
+`npm run dapp`
+* The server will take about less than a minute to start up while registering oracles<br/>
+(refer to the image below to know that server is ready)
 
-## Develop Client
+![server setup](images/server_setup.png)
+
+* Visit the Dapp client page at http://localhost:8080 to start using the app
+
+## How to use the Dapp?
+The Dapp client is configured to use the third index of accounts as the passenger.
+This is the general flow of application usage:
+* Retrieve flight info
+* Purchase insurance if it is available (over here we assume that an insurance is not for sale once flight status is fetched to prevent gaming the system)
+
+![demo](images/demo.gif)
+
+## Running Tests
 
 To run truffle tests:
 
-`truffle test ./test/flightSurety.js`
+`truffle test ./test/flightSurety.js`</br>
 `truffle test ./test/oracles.js`
 
-To use the dapp:
+The tests for contract are written to cover the main functionalities.
+It also demonstrates:
+* airline registration by other airlines (for first 4 airlines)
+* multi-party consensus airline registration
+* airline can only participate in contract after it funds 10 ether
 
-`truffle migrate`
-`npm run dapp`
-
-To view dapp:
-
-`http://localhost:8000`
-
-## Develop Server
-
-`npm run server`
-`truffle test ./test/oracles.js`
-
-## Deploy
-
-To build dapp for prod:
-`npm run dapp:prod`
-
-Deploy the contents of the ./dapp folder
+![server setup](images/test_run.png)
 
 
 ## Resources

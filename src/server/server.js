@@ -138,6 +138,7 @@ function setupEventListeners() {
   }, function (error, event) {
     if (error){
        console.log(error);
+       return;
     } else {
       const flightInfo = event.returnValues;
       console.log(`Flight Status Info: ${flightInfo.airline} ${flightInfo.flight} ${flightInfo.timestamp} ${flightInfo.status}`);
