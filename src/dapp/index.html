@@ -38,40 +38,47 @@
           Successfuly withdrawn <span id="withdrawn-value"></span></div>
         </div>
 
-        <div class="alert alert-light" role="alert" style="display:none" id="submission-info">
+        <div class="alert alert-warning" role="alert" style="display:none" id="submission-info">
         </div>
         
-        <div class="alert alert-dark" role="alert" style="display:none" id="status-alert">
+        <div class="alert alert-primary" role="alert" style="display:none" id="status-alert">
         </div>
-         
         <div class="row top-20">
-            <label class="form">Flight</label> 
-            <!-- <input type="text" id="flight-number">  -->
+            <h2>Flight</h2>
+        </div>
+        <div class="row top-20">
             <select id="flight"></select>
             <btn class="btn btn-primary" id="submit-oracle">Submit to Oracles</btn>
+            <btn class="btn btn-info" id="get-flight-info">Flight Info</btn>
         </div>
+        <div class="top-20">
+            <p style="display: none; color:darkorange" id="retrieving-info">Retrieving flight info ...</p>
+        </div>  
         <div class="top-20">
           <div id="table-report">
           <table class="table">
               <thead class="table-head">
                    <tr>
-                      <th>Flight Info:</th>
                       <th>Airline Address</th>
                       <th>Flight ID</th>
                       <th>Departure Timestamp</th>
                       <th>Flight Status</th>
                       <th>Claimable Amount</th>
+                      <th></th>
                   </tr>
               </thead>
                <tbody>
                   <tr>
-                      <td></td>
                       <td><p id="airline-address-display"></p></td>
                       <td><p id="flight-id-display"></p></td>
                       <td><p id="departure-time-display"></p></td>
                       <td><p id="status-code-display"></p></td>
                       <td><p id="claimable-amount-display"></p>&nbsp;<btn style="display: none" type="button" class="btn btn-primary" id="withdraw-funds">Claim</btn></td>
-                  </tr>
+                      <td>
+                        <input style="display: none" type="number" placeholder="ETH amount" id="eth-amount"/>
+                        <btn style="display: none" type="button" class="btn btn-success" id="buy-insurance">Buy Insurance</btn>
+                      </td>
+                    </tr>
               </tbody>
           </table>
       </div>

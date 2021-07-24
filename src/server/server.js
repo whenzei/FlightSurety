@@ -44,13 +44,13 @@ async function initialSetup() {
   var departureTime = startOfDay / 1000 * 1000 + (60 * 60 * 1000 * 3);
 
   const flightIDs = [
-    "AAL001214",
-    "SIA002114",
-    "KKKT00214",
-    "GGG100214",
-    "FFF410214",
-    "SSS100214",
-    "CC5150214"
+    "AAL" + Math.floor(Math.random()*89999+10000),
+    "SIA" + Math.floor(Math.random()*89999+10000),
+    "KKK" + Math.floor(Math.random()*89999+10000),
+    "GGG" + Math.floor(Math.random()*89999+10000),
+    "FFF" + Math.floor(Math.random()*89999+10000),
+    "SSS" + Math.floor(Math.random()*89999+10000), 
+    "CC5" + Math.floor(Math.random()*89999+10000)
   ]
   for (let flightID of flightIDs) {
     try {
@@ -63,7 +63,8 @@ async function initialSetup() {
 
 async function initOracles() {
   let accounts = await web3.eth.getAccounts();
-  let oracleAccounts = accounts.slice(-20);
+  // Use last 30 accounts as airline
+  let oracleAccounts = accounts.slice(-30);
   const fee = await flightSuretyApp.methods.REGISTRATION_FEE().call();
 
   console.log('Registering oracles...');
@@ -130,6 +131,31 @@ function setupEventListeners() {
       console.log(`Oracle Report: ${report.airline} ${report.flight} ${report.timestamp} ${report.status}`);
     }
   });
+
+  
+  flightSuretyApp.events.FlightStatusInfo({
+    fromBlock: "latest"
+  }, function (error, event) {
+    if (error){
+       console.log(error);
+    } else {
+      const flightInfo = event.returnValues;
+      console.log(`Flight Status Info: ${flightInfo.airline} ${flightInfo.flight} ${flightInfo.timestamp} ${flightInfo.status}`);
+      
+      if (flightInfo.status != 20) return;
+
+      // Attempt to credit insurees when status is 20 
+      flightSuretyApp.methods.creditInsurees(flightInfo.flight, flightInfo.timestamp).send({
+        from: flightInfo.airline,
+        gas: 9999999,
+        gasPrice: 20000000000
+      }).then((result) => {
+          console.log("Insurees credited by airline");
+      }).catch(err => {
+        console.log("Failed to credit insurees");
+      }); 
+    }
+  });
 }
 
 function simulateResponseFromOracles(index, airline, flightID, departureTime) {
@@ -137,6 +163,8 @@ function simulateResponseFromOracles(index, airline, flightID, departureTime) {
 
   for (let oracle of oracles) {
     const randomNumber = Math.random();
+    // Only returning 2 type of statuses to make testing easier, we can easily randomize other statuses
+    // by dividing the random number range accordingly.
     // Simulate that airlines have about 50 chance of being late
     if (randomNumber > 0.5) {
       flightSuretyApp.methods.submitOracleResponse(index, airline, flightID, departureTime, STATUS_CODE_LATE_AIRLINE)
@@ -165,49 +193,6 @@ initialSetup().then(() => {
     initREST();
   });
 });
-
-
-// initOracles().then(oracles =>{
-//   console.log("All oracles registered");
-
-//   initREST();
-
-
-
-//   flightSuretyApp.events.SubmitOracleResponse({
-//     fromBlock: "latest"
-//   }, function (error, event) {
-//       if (error) {
-//           console.log(error)
-//       }
-//       console.log(event);
-      
-//       let airline = event.returnValues.airline;
-//       let flight = event.returnValues.flight;
-//       let timestamp = event.returnValues.timestamp;
-//       let indexes = event.returnValues.indexes;
-//       let statusCode = event.returnValues.statusCode;
-
-//       for(let a=0; a< oracle_address.length; a++){
-//           console.log("Oracle loop ",a);
-//           flightSuretyApp.methods
-//             .submitOracleResponse(indexes, airline,flight,timestamp, statusCode)
-//             .send({ 
-//               from: oracle_address[a] 
-//             }).then(result => {
-//               console.log(result);
-//           }).catch(err => {
-//             console.log("Oracle didn't respond");
-
-//           });
-//       }
-
-//   });
-
-
-
-
-
 
 function initREST(){
   app.get('/api', (req, res) => {

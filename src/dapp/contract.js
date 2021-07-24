@@ -7,7 +7,7 @@ export default class Contract {
     constructor(network, callback) {
 
         let config = Config[network];
-        this.web3 = new Web3(new Web3.providers.HttpProvider(config.url));
+        this.web3 = new Web3(new Web3.providers.WebsocketProvider(config.url.replace('http', 'ws')));
         this.flightSuretyApp = new this.web3.eth.Contract(FlightSuretyApp.abi, config.appAddress);
         this.initialize(callback);
         this.owner = null;
@@ -41,7 +41,57 @@ export default class Contract {
         self.flightSuretyApp.methods
             .fetchFlightStatus(flight.airline, flight.id, flight.departureTime)
             .send({ from: self.owner}, (error, result) => {
-                callback(error, flight);
+                callback(error, result);
+            });
+    }
+
+    getFlightInfo(flight, callback) {
+        let self = this;
+
+        self.flightSuretyApp.methods
+            .getFlightInfo(flight.airline, flight.id, flight.departureTime)
+            .call({ from: self.owner}, (error, result) => {
+                callback(error, result);
+            });
+    }
+
+    fetchInsuranceInfo(flight, callback) {
+        let self = this;
+
+        self.flightSuretyApp.methods
+            .fetchInsuranceInfo(flight.airline, flight.flightID, flight.departureTime)
+            .call({ from: self.passenger}, (error, result) => {
+                callback(error, result);
+            });
+    }
+
+    buyInsurance(flight, ethAmount, callback) {
+        let self = this;
+
+        const amount = Web3.utils.toWei(ethAmount, "ether"); 
+        self.flightSuretyApp.methods
+            .buyInsurance(flight.airline, flight.flightID, flight.departureTime)
+            .send({
+                from: self.passenger,
+                value: amount,
+                gas: 9999999,
+                gasPrice: 20000000000
+            }, (error, result) => {
+                callback(error, result);
+            });
+    }
+
+    claimInsurance(flight, callback) {
+        let self = this;
+
+        self.flightSuretyApp.methods
+            .claimInsurance(flight.airline, flight.flightID, flight.departureTime)
+            .send({
+                from: self.passenger,
+                gas: 9999999,
+                gasPrice: 20000000000
+            }, (error, result) => {
+                callback(error, result);
             });
     }
 
